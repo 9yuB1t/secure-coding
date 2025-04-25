@@ -3,9 +3,14 @@
 {% block content %}
 <h2>프로필 관리</h2>
 <p>사용자명: {{ user.username }}</p>
+
 <form method="post">
   소개글: <br>
-  <textarea name="bio" rows="4" cols="50">{{ user.bio or '' }}</textarea><br>
-  <button type="submit">프로필 업데이트</button>
+  <textarea name="bio" rows="4" cols="50">{{ user.bio or '' }}</textarea><br><br>
+
+  비밀번호 변경 (선택): <br>
+  <input type="password" name="password" placeholder="새 비밀번호"><br><br>
+
+  <button type="submit">프로필 및 비밀번호 업데이트</button>
 </form>
 {% endblock %}

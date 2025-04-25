@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}내 상품 관리{% endblock %}
+{% block content %}
+<h2>내가 등록한 상품</h2>
+
+{% if products %}
+  <ul>
+    {% for product in products %}
+      <li>
+        <form method="post">
+          <input type="hidden" name="update_id" value="{{ product.id }}">
+          제목:<br>
+          <input type="text" name="title" value="{{ product.title }}" required><br>
+          설명:<br>
+          <textarea name="description" rows="3">{{ product.description }}</textarea><br>
+          가격:<br>
+          <input type="text" name="price" value="{{ product.price }}" required><br>
+          <button type="submit">수정</button>
+        </form>
+
+        <form method="post" style="margin-top: 10px;">
+          <input type="hidden" name="delete_id" value="{{ product.id }}">
+          <button type="submit" onclick="return confirm('정말 삭제하시겠습니까?')">삭제</button>
+        </form>
+      </li>
+      <br>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>등록한 상품이 없습니다.</p>
+{% endif %}
+
+<a href="{{ url_for('dashboard') }}">← 대시보드로 돌아가기</a>
+{% endblock %}

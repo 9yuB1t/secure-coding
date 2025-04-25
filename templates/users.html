@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}사용자 목록{% endblock %}
+{% block content %}
+<h2>전체 사용자 목록</h2>
+
+<ul>
+  {% for user in users %}
+  <li>
+    <strong>{{ user.username }}</strong><br>
+    소개글: {{ user.bio or '없음' }}<br>
+    {% if user.id != session['user_id'] %}
+      <a href="{{ url_for('chat', user_id=user.id) }}">채팅하기</a>
+    {% endif %}
+  </li>
+{% endfor %}
+</ul>
+
+<a href="{{ url_for('dashboard') }}">← 대시보드로 돌아가기</a>
+{% endblock %}
