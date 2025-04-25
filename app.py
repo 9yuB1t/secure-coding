@@ -33,7 +33,8 @@ def init_db():
                 id TEXT PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                bio TEXT
+                bio TEXT,
+                is_active INTEGER DEFAULT 1
             )
         """)
         # 상품 테이블 생성
@@ -43,7 +44,8 @@ def init_db():
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
                 price TEXT NOT NULL,
-                seller_id TEXT NOT NULL
+                seller_id TEXT NOT NULL,
+                is_removed INTEGER DEFAULT 0
             )
         """)
         # 신고 테이블 생성
@@ -52,24 +54,10 @@ def init_db():
                 id TEXT PRIMARY KEY,
                 reporter_id TEXT NOT NULL,
                 target_id TEXT NOT NULL,
-                reason TEXT NOT NULL
+                reason TEXT NOT NULL,
+                target_type TEXT
             )
         """)
-        
-        try:
-            cursor.execute("ALTER TABLE user ADD COLUMN is_active INTEGER DEFAULT 1")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            cursor.execute("ALTER TABLE product ADD COLUMN is_removed INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            cursor.execute("ALTER TABLE report ADD COLUMN target_type TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-
         
         db.commit()
 
@@ -219,57 +207,71 @@ def view_product(product_id):
 # 신고하기
 @app.route('/report', methods=['GET', 'POST'])
 def report():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    
+    flash('현재 신고 기능은 점검 중입니다. 이용에 불편을 드려 죄송합니다.', 'warning')
+    return redirect(url_for('dashboard'))
 
-    db = get_db()
-    cursor = db.cursor()
+    
+    # if 'user_id' not in session:
+    #     return redirect(url_for('login'))
 
-    if request.method == 'POST':
-        target_id = request.form['target_id'].strip()
-        target_type = request.form['target_type'].strip().lower()
-        reason = request.form['reason'].strip()
-        report_id = str(uuid.uuid4())
+    # db = get_db()
+    # cursor = db.cursor()
 
-        # 신고 내용 저장
-        cursor.execute(
-            "INSERT INTO report (id, reporter_id, target_id, reason, target_type) VALUES (?, ?, ?, ?, ?)",
-            (report_id, session['user_id'], target_id, reason, target_type)
-        )
+    # if request.method == 'POST':
+    #     target_id = request.form['target_id'].strip()
+    #     target_type = request.form['target_type'].strip().lower()
+    #     reason = request.form['reason'].strip()
+    #     report_id = str(uuid.uuid4())
 
-        # 신고 누적 확인
-        cursor.execute(
-            "SELECT COUNT(*) FROM report WHERE target_id = ? AND target_type = ?",
-            (target_id, target_type)
-        )
-        report_count = cursor.fetchone()[0]
+    #     # --- 1. 신고 대상 존재 여부 먼저 체크 ---
+    #     if target_type == 'user':
+    #         cursor.execute("SELECT * FROM user WHERE id = ?", (target_id,))
+    #         if not cursor.fetchone():
+    #             flash('신고 대상 사용자가 존재하지 않습니다.')
+    #             return redirect(url_for('dashboard'))
+    #     elif target_type == 'product':
+    #         cursor.execute("SELECT * FROM product WHERE id = ? AND is_removed = 0", (target_id,))
+    #         if not cursor.fetchone():
+    #             flash('신고 대상 상품이 존재하지 않거나 이미 삭제된 상품입니다.')
+    #             return redirect(url_for('dashboard'))
+    #     else:
+    #         flash('잘못된 신고 대상 유형입니다.')
+    #         return redirect(url_for('dashboard'))
 
-        # DEBUG 확인
-        print(f"[DEBUG] 신고 대상 ID: {target_id}, 유형: {target_type}, 누적 횟수: {report_count}")
+    #     # --- 2. 신고 저장 ---
+    #     cursor.execute(
+    #         "INSERT INTO report (id, reporter_id, target_id, reason, target_type) VALUES (?, ?, ?, ?, ?)",
+    #         (report_id, session['user_id'], target_id, reason, target_type)
+    #     )
 
-        # 유저 신고 3회 이상 → 휴면 처리
-        if target_type == 'user' and report_count >= 3:
-            cursor.execute("UPDATE user SET is_active = 0 WHERE id = ?", (target_id,))
-            db.commit()
-            if cursor.rowcount > 0:  # 쿼리가 영향을 미쳤는지 확인
-                flash('신고 누적으로 해당 사용자가 휴면 처리되었습니다.')
-            else:
-                flash('휴면 처리 실패: 사용자 없음')
-        # 상품 신고 3회 이상 → 삭제 처리
-        elif target_type == 'product' and report_count >= 3:
-            #cursor.execute("UPDATE product SET is_removed = 1 WHERE id = ?", (target_id,))
-            cursor.execute("DELETE FROM product WHERE id = ?", (target_id,))
-            db.commit()
-            if cursor.rowcount > 0:  # 쿼리가 영향을 미쳤는지 확인
-                flash('신고 누적으로 해당 상품이 삭제 처리되었습니다.')
-            else:
-                flash('삭제 처리 실패: 상품 없음')
+    #     # --- 3. 신고 누적 횟수 확인 ---
+    #     cursor.execute(
+    #         "SELECT COUNT(*) FROM report WHERE target_id = ? AND target_type = ?",
+    #         (target_id, target_type)
+    #     )
+    #     report_count = cursor.fetchone()[0]
 
-        db.commit()
-        flash('신고가 접수되었습니다.')
-        return redirect(url_for('dashboard'))
+    #     # --- 4. 신고 3회 이상 처리 ---
+    #     if target_type == 'user' and report_count >= 3:
+    #         cursor.execute("UPDATE user SET is_active = 0 WHERE id = ? AND is_active = 1", (target_id,))
+    #         if cursor.rowcount > 0:
+    #             flash('신고 누적으로 해당 사용자가 휴면 처리되었습니다.')
+    #         else:
+    #             flash('휴면 처리 실패: 사용자 없음 또는 이미 휴면 상태입니다.')
+    #     elif target_type == 'product' and report_count >= 3:
+    #         cursor.execute("UPDATE product SET is_removed = 1 WHERE id = ? AND is_removed = 0", (target_id,))
+    #         if cursor.rowcount > 0:
+    #             flash('신고 누적으로 해당 상품이 삭제 처리되었습니다.')
+    #         else:
+    #             flash('삭제 처리 실패: 상품 없음 또는 이미 삭제됨')
 
-    return render_template('report.html')
+    #     db.commit()
+    #     flash('신고가 정상적으로 접수되었습니다.')
+    #     return redirect(url_for('dashboard'))
+
+    # return render_template('report.html')
+
 
 
 # 실시간 채팅: 클라이언트가 메시지를 보내면 전체 브로드캐스트
